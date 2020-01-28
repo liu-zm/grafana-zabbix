@@ -113,6 +113,7 @@ export class TriggerPanelCtrl extends PanelCtrl {
     this.triggerList = [];
     this.datasources = {};
     this.range = {};
+    this.timingPerf = {};
 
     this.panel = migratePanelSchema(this.panel);
     _.defaultsDeep(this.panel, _.cloneDeep(PANEL_DEFAULTS));
@@ -182,10 +183,12 @@ export class TriggerPanelCtrl extends PanelCtrl {
 
   setTimeQueryStart() {
     this.timing.queryStart = new Date().getTime();
+    this.timingPerf.queryStart = performance.now();
   }
 
   setTimeQueryEnd() {
     this.timing.queryEnd = (new Date()).getTime();
+    this.timingPerf.queryEnd = performance.now();
   }
 
   onRefresh() {
@@ -205,6 +208,8 @@ export class TriggerPanelCtrl extends PanelCtrl {
       // Notify panel that request is finished
       this.loading = false;
       this.setTimeQueryEnd();
+      const execTime = this.timingPerf.queryEnd - this.timingPerf.queryStart;
+      console.log(`Query execution time is ${Math.round(execTime)} ms`);
       return this.renderTriggers(triggers);
     })
     .then(() => {
@@ -251,9 +256,12 @@ export class TriggerPanelCtrl extends PanelCtrl {
       const ds = target.datasource;
       let proxies;
       let showAckButton = true;
+      let zabbixVersion;
       return this.datasourceSrv.get(ds)
       .then(datasource => {
         const zabbix = datasource.zabbix;
+        zabbixVersion = datasource.zabbixVersion;
+        console.log(`zabbix version: ${zabbixVersion}`);
         const showEvents = this.panel.showEvents.value;
         const triggerFilter = target;
         const showProxy = this.panel.hostProxy;
@@ -275,12 +283,18 @@ export class TriggerPanelCtrl extends PanelCtrl {
           triggersOptions.timeTo = timeTo;
         }
 
+        const getProblemsMethod = zabbixVersion >= 4 ? zabbix.getProblems : zabbix.getTriggers;
+
         return Promise.all([
-          zabbix.getTriggers(groupFilter, hostFilter, appFilter, triggersOptions, proxyFilter),
-          getProxiesPromise
+          getProblemsMethod.bind(zabbix)(groupFilter, hostFilter, appFilter, triggersOptions, proxyFilter),
+          getProxiesPromise,
         ]);
       }).then(([triggers, sourceProxies]) => {
         proxies = _.keyBy(sourceProxies, 'proxyid');
+        if (zabbixVersion >= 4) {
+          return [[], triggers];
+        }
+
         const eventids = _.compact(triggers.map(trigger => {
           return trigger.lastEvent.eventid;
         }));
@@ -290,8 +304,10 @@ export class TriggerPanelCtrl extends PanelCtrl {
         ]);
       })
       .then(([events, triggers]) => {
-        this.addEventTags(events, triggers);
-        this.addAcknowledges(events, triggers);
+        if (zabbixVersion < 4) {
+          this.addEventTags(events, triggers);
+          this.addAcknowledges(events, triggers);
+        }
         return triggers;
       })
       .then(triggers => this.setMaintenanceStatus(triggers))

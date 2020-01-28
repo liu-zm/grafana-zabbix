@@ -258,6 +258,62 @@ export class Zabbix {
     .then(itServices => findByFilter(itServices, itServiceFilter));
   }
 
+  getProblems(groupFilter, hostFilter, appFilter, options, proxyFilter) {
+    let promises = [
+      this.getGroups(groupFilter),
+      this.getHosts(groupFilter, hostFilter),
+      this.getApps(groupFilter, hostFilter, appFilter)
+    ];
+
+    return Promise.all(promises)
+    .then(results => {
+      let [filteredGroups, filteredHosts, filteredApps] = results;
+      let query = {};
+
+      if (appFilter) {
+        query.applicationids = _.flatten(_.map(filteredApps, 'applicationid'));
+      }
+      if (hostFilter) {
+        query.hostids = _.map(filteredHosts, 'hostid');
+      }
+      if (groupFilter) {
+        query.groupids = _.map(filteredGroups, 'groupid');
+      }
+
+      return query;
+    })
+    .then(query => {
+      return this.zabbixAPI.getProblems(query.groupids, query.hostids, query.applicationids, options);
+    })
+    .then(problems => {
+      console.log(problems);
+      const triggerIDs = [];
+      for (const problem of problems) {
+        if (problem.object === '0') {
+          triggerIDs.push(problem.objectid);
+        }
+      }
+
+      return Promise.all([
+        problems,
+        this.zabbixAPI.getTriggersByIds(triggerIDs)
+      ]);
+      // return this.filterTriggersByProxy(problems, proxyFilter);
+    })
+    .then(([problems, triggers]) => {
+      console.log(triggers);
+      const problemsFormatted = [];
+      const triggersGrouped = _.keyBy(triggers, 'triggerid');
+      for (let i = 0; i < problems.length; i++) {
+        const p = problems[i];
+        const t = triggersGrouped[p.objectid];
+        problemsFormatted.push(formatProblem(p, t));
+      }
+      console.log(problemsFormatted);
+      return problemsFormatted;
+    });
+  }
+
   /**
    * Build query - convert target filters to array of Zabbix items
    */
@@ -285,7 +341,10 @@ export class Zabbix {
 
       return query;
     })
-    .then(query => this.zabbixAPI.getTriggers(query.groupids, query.hostids, query.applicationids, options))
+    .then(query => {
+      this.zabbixAPI.getProblems(query.groupids, query.hostids, query.applicationids, options).then(console.log);
+      return this.zabbixAPI.getTriggers(query.groupids, query.hostids, query.applicationids, options);
+    })
     .then(triggers => this.filterTriggersByProxy(triggers, proxyFilter));
   }
 
@@ -435,4 +494,34 @@ function getHostIds(items) {
     return _.map(item.hosts, 'hostid');
   });
   return _.uniq(_.flatten(hostIds));
+}
+
+function formatProblem(problem, trigger) {
+  let p = _.cloneDeep(trigger);
+
+  // Set host and proxy that the trigger belongs
+  if (trigger.hosts && trigger.hosts.length) {
+    const host = trigger.hosts[0];
+    p.host = host.name;
+    p.hostTechName = host.host;
+    if (host.proxy) {
+      p.proxy = host.proxy;
+    }
+  }
+
+  // Set tags if present
+  if (problem.tags && problem.tags.length) {
+    p.tags = problem.tags;
+  } else {
+    p.tags = [];
+  }
+
+  // Set acknowledges
+  if (problem.acknowledges && problem.acknowledges.length) {
+    p.acknowledges = problem.acknowledges;
+  } else {
+    p.acknowledges = [];
+  }
+
+  return p;
 }

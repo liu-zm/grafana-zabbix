@@ -326,6 +326,28 @@ export class ZabbixAPIConnector {
     return this.request('service.getsla', params);
   }
 
+  getProblems(groupids, hostids, applicationids, options) {
+    let {timeFrom, timeTo} = options;
+
+    let params = {
+      output: 'extend',
+      groupids: groupids,
+      hostids: hostids,
+      applicationids: applicationids,
+      recent: false,
+      selectAcknowledges: 'extend',
+      selectSuppressionData: 'extend',
+      selectTags: 'extend'
+    };
+
+    if (timeFrom || timeTo) {
+      params.time_from = timeFrom;
+      params.time_till = timeTo;
+    }
+
+    return this.request('problem.get', params);
+  }
+
   getTriggers(groupids, hostids, applicationids, options) {
     let {showTriggers, maintenance, timeFrom, timeTo} = options;
 
@@ -362,6 +384,19 @@ export class ZabbixAPIConnector {
       params.lastChangeSince = timeFrom;
       params.lastChangeTill = timeTo;
     }
+
+    return this.request('trigger.get', params);
+  }
+
+  getTriggersByIds(triggerids) {
+    let params = {
+      output: 'extend',
+      triggerids: triggerids,
+      expandDescription: true,
+      expandData: true,
+      expandComment: true,
+      selectHosts: ['name', 'host', 'proxy_hostid'],
+    };
 
     return this.request('trigger.get', params);
   }
