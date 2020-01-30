@@ -259,11 +259,19 @@ export class Zabbix {
   }
 
   getProblems(groupFilter, hostFilter, appFilter, options, proxyFilter) {
-    let promises = [
-      this.getGroups(groupFilter),
-      this.getHosts(groupFilter, hostFilter),
-      this.getApps(groupFilter, hostFilter, appFilter)
-    ];
+    let promises;
+
+    if (!groupFilter && !hostFilter) {
+      // Bypass if filters are empty
+      promises = [Promise.resolve([]), Promise.resolve([]), Promise.resolve([])];
+    } else {
+      promises = [
+        this.getGroups(groupFilter),
+        this.getHosts(groupFilter, hostFilter),
+        this.getApps(groupFilter, hostFilter, appFilter)
+      ];
+    }
+
 
     return Promise.all(promises)
     .then(results => {
@@ -282,9 +290,7 @@ export class Zabbix {
 
       return query;
     })
-    .then(query => {
-      return this.zabbixAPI.getProblems(query.groupids, query.hostids, query.applicationids, options);
-    })
+    .then(query => this.zabbixAPI.getProblems(query.groupids, query.hostids, query.applicationids, options))
     .then(problems => {
       const triggerIDs = [];
       for (const problem of problems) {
