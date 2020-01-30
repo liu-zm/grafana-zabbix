@@ -321,11 +321,18 @@ export class Zabbix {
    * Build query - convert target filters to array of Zabbix items
    */
   getTriggers(groupFilter, hostFilter, appFilter, options, proxyFilter) {
-    let promises = [
-      this.getGroups(groupFilter),
-      this.getHosts(groupFilter, hostFilter),
-      this.getApps(groupFilter, hostFilter, appFilter)
-    ];
+    let promises;
+
+    if (!groupFilter && !hostFilter) {
+      // Bypass if filters are empty
+      promises = [Promise.resolve([]), Promise.resolve([]), Promise.resolve([])];
+    } else {
+      promises = [
+        this.getGroups(groupFilter),
+        this.getHosts(groupFilter, hostFilter),
+        this.getApps(groupFilter, hostFilter, appFilter)
+      ];
+    }
 
     return Promise.all(promises)
     .then(results => {
