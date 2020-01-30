@@ -74,6 +74,55 @@ export interface TriggerSeverity {
 
 export type TriggerColor = string;
 
+/**
+ * GFZBXProblem combines some props from ZBXTrigger and ZBXProblem for compatibility
+ */
+export interface GFZBXProblem {
+  eventid: string;
+  clock: string;
+  name: string;
+  severity: string;
+  acknowledged: string;
+
+  acknowledges: ZBXProblemUpdate[] | ZBXAcknowledge[];
+  tags: ZBXTag[];
+  hosts?: ZBXHost[];
+
+  showAckButton?: boolean;
+  alerts?: ZBXAlert[];
+  age?: string;
+  color?: TriggerColor;
+  comments?: string;
+  correlation_mode?: string;
+  correlation_tag?: string;
+  datasource?: string;
+  description?: string;
+  error?: string;
+  expression?: string;
+  flags?: string;
+  groups?: ZBXGroup[];
+  host?: string;
+  hostTechName?: string;
+  items?: ZBXItem[];
+  lastEvent?: ZBXEvent;
+  lastchange?: string;
+  lastchangeUnix?: number;
+  maintenance?: boolean;
+  manual_close?: string;
+  priority?: string;
+  proxy?: string;
+  recovery_expression?: string;
+  recovery_mode?: string;
+  state?: string;
+  status?: string;
+  templateid?: string;
+  triggerid?: string;
+  /** Whether the trigger can generate multiple problem events. */
+  type?: string;
+  url?: string;
+  value?: string;
+}
+
 export interface ZBXTrigger {
   acknowledges?: ZBXAcknowledge[];
   showAckButton?: boolean;
@@ -112,6 +161,33 @@ export interface ZBXTrigger {
   type?: string;
   url?: string;
   value?: string;
+}
+
+export interface ZBXProblem {
+  eventid: string;
+  objectid: string;
+  object: string;
+  source: string;
+  name: string;
+  clock: string;
+  ns: string;
+  acknowledged: string;
+  severity: string;
+  suppressed: string;
+  acknowledges: ZBXProblemUpdate[];
+  suppression_data: any[];
+  tags: ZBXTag[];
+}
+
+export interface ZBXProblemUpdate {
+  acknowledgeid: string;
+  userid: string;
+  eventid: string;
+  clock: string;
+  message: string;
+  action: string;
+  old_severity: string;
+  new_severity: string;
 }
 
 export interface ZBXGroup {

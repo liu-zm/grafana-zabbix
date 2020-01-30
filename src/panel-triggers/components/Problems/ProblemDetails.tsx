@@ -1,7 +1,7 @@
 import React, { PureComponent } from 'react';
 import moment from 'moment';
 import * as utils from '../../../datasource-zabbix/utils';
-import { ZBXTrigger, ZBXItem, ZBXAcknowledge, ZBXHost, ZBXGroup, ZBXEvent, GFTimeRange, RTRow, ZBXTag, ZBXAlert } from '../../types';
+import { GFZBXProblem, ZBXItem, ZBXAcknowledge, ZBXHost, ZBXGroup, ZBXEvent, GFTimeRange, RTRow, ZBXTag, ZBXAlert, ZBXProblem } from '../../types';
 import { Modal, AckProblemData } from '../Modal';
 import EventTag from '../EventTag';
 import Tooltip from '../Tooltip/Tooltip';
@@ -10,17 +10,20 @@ import AcknowledgesList from './AcknowledgesList';
 import ProblemTimeline from './ProblemTimeline';
 import FAIcon from '../FAIcon';
 
-interface ProblemDetailsProps extends RTRow<ZBXTrigger> {
+interface ProblemDetailsProps extends RTRow<GFZBXProblem> {
   rootWidth: number;
   timeRange: GFTimeRange;
+  timeFormat: string;
   showTimeline?: boolean;
-  getProblemEvents: (problem: ZBXTrigger) => Promise<ZBXEvent[]>;
-  getProblemAlerts: (problem: ZBXTrigger) => Promise<ZBXAlert[]>;
-  onProblemAck?: (problem: ZBXTrigger, data: AckProblemData) => Promise<any> | any;
+  getProblemEvent: (problem: GFZBXProblem) => Promise<ZBXEvent>;
+  getProblemEvents: (problem: GFZBXProblem) => Promise<ZBXEvent[]>;
+  getProblemAlerts: (problem: GFZBXProblem) => Promise<ZBXAlert[]>;
+  onProblemAck?: (problem: GFZBXProblem, data: AckProblemData) => Promise<any> | any;
   onTagClick?: (tag: ZBXTag, datasource: string, ctrlKey?: boolean, shiftKey?: boolean) => void;
 }
 
 interface ProblemDetailsState {
+  event: ZBXEvent;
   events: ZBXEvent[];
   alerts: ZBXAlert[];
   show: boolean;
@@ -31,6 +34,7 @@ export default class ProblemDetails extends PureComponent<ProblemDetailsProps, P
   constructor(props) {
     super(props);
     this.state = {
+      event: null,
       events: [],
       alerts: [],
       show: false,
@@ -39,10 +43,11 @@ export default class ProblemDetails extends PureComponent<ProblemDetailsProps, P
   }
 
   componentDidMount() {
+    this.getProblemEvent();
+    this.fetchProblemAlerts();
     if (this.props.showTimeline) {
       this.fetchProblemEvents();
     }
-    this.fetchProblemAlerts();
     requestAnimationFrame(() => {
       this.setState({ show: true });
     });
@@ -52,6 +57,12 @@ export default class ProblemDetails extends PureComponent<ProblemDetailsProps, P
     if (this.props.onTagClick) {
       this.props.onTagClick(tag, this.props.original.datasource, ctrlKey, shiftKey);
     }
+  }
+
+  async getProblemEvent() {
+    const { original: problem, getProblemEvent } = this.props;
+    const event = await getProblemEvent(problem);
+    this.setState({ event });
   }
 
   fetchProblemEvents() {
@@ -71,7 +82,7 @@ export default class ProblemDetails extends PureComponent<ProblemDetailsProps, P
   }
 
   ackProblem = (data: AckProblemData) => {
-    const problem = this.props.original as ZBXTrigger;
+    const problem = this.props.original as GFZBXProblem;
     return this.props.onProblemAck(problem, data).then(result => {
       this.closeAckDialog();
     }).catch(err => {
@@ -89,14 +100,14 @@ export default class ProblemDetails extends PureComponent<ProblemDetailsProps, P
   }
 
   render() {
-    const problem = this.props.original as ZBXTrigger;
-    const alerts = this.state.alerts;
-    const rootWidth = this.props.rootWidth;
+    const problem = this.props.original as GFZBXProblem;
+    const { timeFormat, rootWidth } = this.props;
+    const { event, alerts } = this.state;
     const displayClass = this.state.show ? 'show' : '';
     const wideLayout = rootWidth > 1200;
     const compactStatusBar = rootWidth < 800 || problem.acknowledges && wideLayout && rootWidth < 1400;
     const age = moment.unix(problem.lastchangeUnix).fromNow(true);
-    const showAcknowledges = problem.acknowledges && problem.acknowledges.length !== 0;
+    const showAcknowledges = event && event.acknowledges && event.acknowledges.length > 0;
 
     return (
       <div className={`problem-details-container ${displayClass}`}>
@@ -115,6 +126,7 @@ export default class ProblemDetails extends PureComponent<ProblemDetailsProps, P
                 <ProblemActionButton className="navbar-button navbar-button--settings"
                   icon="reply-all"
                   tooltip="Acknowledge problem"
+                  disabled={!problem.eventid}
                   onClick={this.showAckDialog} />
               </div>
             }
@@ -143,7 +155,7 @@ export default class ProblemDetails extends PureComponent<ProblemDetailsProps, P
           {showAcknowledges && !wideLayout &&
             <div className="problem-ack-container">
               <h6><FAIcon icon="reply-all" /> Acknowledges</h6>
-              <AcknowledgesList acknowledges={problem.acknowledges} />
+              <AcknowledgesList acknowledges={event.acknowledges} timeFormat={timeFormat} />
             </div>
           }
         </div>
@@ -151,7 +163,7 @@ export default class ProblemDetails extends PureComponent<ProblemDetailsProps, P
           <div className="problem-details-middle">
             <div className="problem-ack-container">
               <h6><FAIcon icon="reply-all" /> Acknowledges</h6>
-              <AcknowledgesList acknowledges={problem.acknowledges} />
+              <AcknowledgesList acknowledges={event.acknowledges} timeFormat={timeFormat} />
             </div>
           </div>
         }
@@ -246,6 +258,7 @@ class ProblemHosts extends PureComponent<ProblemHostsProps> {
 interface ProblemActionButtonProps {
   icon: string;
   tooltip?: string;
+  disabled?: boolean;
   className?: string;
   onClick?: (event?) => void;
 }
@@ -256,9 +269,9 @@ class ProblemActionButton extends PureComponent<ProblemActionButtonProps> {
   }
 
   render() {
-    const { icon, tooltip, className } = this.props;
+    const { icon, tooltip, disabled, className } = this.props;
     let button = (
-      <button className={`btn problem-action-button ${className || ''}`} onClick={this.handleClick}>
+      <button className={`btn problem-action-button ${className || ''}`} onClick={this.handleClick} disabled={disabled}>
         <FAIcon icon={icon} />
       </button>
     );

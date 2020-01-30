@@ -5,11 +5,13 @@ import _ from 'lodash';
 import moment from 'moment';
 import * as utils from '../../../datasource-zabbix/utils';
 import { isNewProblem } from '../../utils';
-import { ProblemsPanelOptions, ZBXTrigger, ZBXEvent, GFTimeRange, RTCell, ZBXTag, TriggerSeverity, RTResized, ZBXAlert } from '../../types';
+import { ProblemsPanelOptions, ZBXTrigger, ZBXEvent, GFTimeRange, RTCell, ZBXTag, TriggerSeverity, RTResized, ZBXAlert, ZBXProblem } from '../../types';
 import EventTag from '../EventTag';
 import ProblemDetails from './ProblemDetails';
 import { AckProblemData } from '../Modal';
 import GFHeartIcon from '../GFHeartIcon';
+
+const DEFAULT_TIME_FORMAT = "DD MMM YYYY HH:mm:ss";
 
 export interface ProblemListProps {
   problems: ZBXTrigger[];
@@ -18,6 +20,7 @@ export interface ProblemListProps {
   timeRange?: GFTimeRange;
   pageSize?: number;
   fontSize?: number;
+  getProblemEvent: (problem: ZBXProblem) => ZBXEvent[];
   getProblemEvents: (problem: ZBXTrigger) => ZBXEvent[];
   getProblemAlerts: (problem: ZBXTrigger) => ZBXAlert[];
   onProblemAck?: (problem: ZBXTrigger, data: AckProblemData) => void;
@@ -135,6 +138,7 @@ export default class ProblemList extends PureComponent<ProblemListProps, Problem
     const columns = this.buildColumns();
     this.rootWidth = this.rootRef && this.rootRef.clientWidth;
     const { pageSize, fontSize, panelOptions } = this.props;
+    const timeFormat = panelOptions.customLastChangeFormat ? panelOptions.lastChangeFormat : DEFAULT_TIME_FORMAT;
     const panelClass = classNames('panel-problems', { [`font-size--${fontSize}`]: fontSize });
     let pageSizeOptions = [5, 10, 20, 25, 50, 100];
     if (pageSize) {
@@ -158,7 +162,9 @@ export default class ProblemList extends PureComponent<ProblemListProps, Problem
             <ProblemDetails {...props}
               rootWidth={this.rootWidth}
               timeRange={this.props.timeRange}
+              timeFormat={timeFormat}
               showTimeline={panelOptions.problemTimeline}
+              getProblemEvent={this.props.getProblemEvent}
               getProblemEvents={this.props.getProblemEvents}
               getProblemAlerts={this.props.getProblemAlerts}
               onProblemAck={this.handleProblemAck}

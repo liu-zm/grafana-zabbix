@@ -261,7 +261,6 @@ export class TriggerPanelCtrl extends PanelCtrl {
       .then(datasource => {
         const zabbix = datasource.zabbix;
         zabbixVersion = datasource.zabbixVersion;
-        console.log(`zabbix version: ${zabbixVersion}`);
         const showEvents = this.panel.showEvents.value;
         const triggerFilter = target;
         const showProxy = this.panel.hostProxy;
@@ -291,17 +290,7 @@ export class TriggerPanelCtrl extends PanelCtrl {
         ]);
       }).then(([triggers, sourceProxies]) => {
         proxies = _.keyBy(sourceProxies, 'proxyid');
-        if (zabbixVersion >= 4) {
-          return [[], triggers];
-        }
-
-        const eventids = _.compact(triggers.map(trigger => {
-          return trigger.lastEvent.eventid;
-        }));
-        return Promise.all([
-          this.datasources[ds].zabbix.getExtendedEventData(eventids),
-          Promise.resolve(triggers)
-        ]);
+        return [[], triggers];
       })
       .then(([events, triggers]) => {
         if (zabbixVersion < 4) {
@@ -532,6 +521,13 @@ export class TriggerPanelCtrl extends PanelCtrl {
     this.refresh();
   }
 
+  getProblemEvent(problem) {
+    const eventids = [problem.eventid];
+    return this.datasourceSrv.get(problem.datasource)
+    .then(datasource => datasource.zabbix.getExtendedEventData(eventids))
+    .then(events => events && events[problem.eventid]);
+  }
+
   getProblemEvents(problem) {
     const triggerids = [problem.triggerid];
     const timeFrom = Math.ceil(dateMath.parse(this.range.from) / 1000);
@@ -543,10 +539,10 @@ export class TriggerPanelCtrl extends PanelCtrl {
   }
 
   getProblemAlerts(problem) {
-    if (!problem.lastEvent || problem.lastEvent.length === 0) {
+    if (!problem.eventid) {
       return Promise.resolve([]);
     }
-    const eventids = [problem.lastEvent.eventid];
+    const eventids = [problem.eventid];
     return this.datasourceSrv.get(problem.datasource)
     .then(datasource => {
       return datasource.zabbix.getEventAlerts(eventids);
@@ -631,7 +627,7 @@ export class TriggerPanelCtrl extends PanelCtrl {
   }
 
   acknowledgeTrigger(trigger, message) {
-    let eventid = trigger.lastEvent ? trigger.lastEvent.eventid : null;
+    let eventid = trigger.eventid;
     let grafana_user = this.contextSrv.user.name;
     let ack_message = grafana_user + ' (Grafana): ' + message;
     return this.datasourceSrv.get(trigger.datasource)
@@ -698,6 +694,8 @@ export class TriggerPanelCtrl extends PanelCtrl {
         loading,
         pageSize,
         fontSize: fontSizeProp,
+        timeFormat: ctrl.panel.lastChangeFormat || ctrl.defaultTimeFormat,
+        getProblemEvent: ctrl.getProblemEvent.bind(ctrl),
         getProblemEvents: ctrl.getProblemEvents.bind(ctrl),
         getProblemAlerts: ctrl.getProblemAlerts.bind(ctrl),
         onPageSizeChange: ctrl.handlePageSizeChange.bind(ctrl),

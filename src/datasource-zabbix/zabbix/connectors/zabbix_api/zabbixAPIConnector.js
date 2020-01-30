@@ -92,6 +92,15 @@ export class ZabbixAPIConnector {
   // Zabbix API method wrappers //
   ////////////////////////////////
 
+  acknowledgeEventLegacy(eventid, message) {
+    const params = {
+      eventids: eventid,
+      message: message,
+    };
+
+    return this.request('event.acknowledge', params);
+  }
+
   acknowledgeEvent(eventid, message) {
     const action = this.version >= 4 ? ZBX_ACK_ACTION_ACK + ZBX_ACK_ACTION_ADD_MESSAGE : ZBX_ACK_ACTION_NONE;
     const params = {
@@ -395,7 +404,9 @@ export class ZabbixAPIConnector {
       expandDescription: true,
       expandData: true,
       expandComment: true,
+      selectGroups: ['name'],
       selectHosts: ['name', 'host', 'proxy_hostid'],
+      selectItems: ['name', 'key_', 'lastvalue'],
     };
 
     return this.request('trigger.get', params);

@@ -1,10 +1,10 @@
 import React from 'react';
 import FAIcon from '../FAIcon';
 import Tooltip from '../Tooltip/Tooltip';
-import { ZBXTrigger, ZBXAlert } from '../../types';
+import { GFZBXProblem, ZBXAlert } from '../../types';
 
 export interface ProblemStatusBarProps {
-  problem: ZBXTrigger;
+  problem: GFZBXProblem;
   alerts?: ZBXAlert[];
   className?: string;
 }

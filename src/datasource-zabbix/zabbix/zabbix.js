@@ -20,8 +20,8 @@ const REQUESTS_TO_CACHE = [
 
 const REQUESTS_TO_BIND = [
   'getHistory', 'getTrend', 'getMacros', 'getItemsByIDs', 'getEvents', 'getAlerts', 'getHostAlerts',
-  'getAcknowledges', 'getITService', 'getVersion', 'login', 'acknowledgeEvent', 'getProxies', 'getEventAlerts',
-  'getExtendedEventData'
+  'getAcknowledges', 'getITService', 'getVersion', 'login', 'acknowledgeEvent', 'acknowledgeEventLegacy', 'getProxies',
+  'getEventAlerts', 'getExtendedEventData'
 ];
 
 export class Zabbix {
@@ -286,7 +286,6 @@ export class Zabbix {
       return this.zabbixAPI.getProblems(query.groupids, query.hostids, query.applicationids, options);
     })
     .then(problems => {
-      console.log(problems);
       const triggerIDs = [];
       for (const problem of problems) {
         if (problem.object === '0') {
@@ -298,10 +297,8 @@ export class Zabbix {
         problems,
         this.zabbixAPI.getTriggersByIds(triggerIDs)
       ]);
-      // return this.filterTriggersByProxy(problems, proxyFilter);
     })
     .then(([problems, triggers]) => {
-      console.log(triggers);
       const problemsFormatted = [];
       const triggersGrouped = _.keyBy(triggers, 'triggerid');
       for (let i = 0; i < problems.length; i++) {
@@ -309,9 +306,9 @@ export class Zabbix {
         const t = triggersGrouped[p.objectid];
         problemsFormatted.push(formatProblem(p, t));
       }
-      console.log(problemsFormatted);
       return problemsFormatted;
-    });
+    })
+    .then(problems => this.filterTriggersByProxy(problems, proxyFilter));
   }
 
   /**
@@ -342,8 +339,11 @@ export class Zabbix {
       return query;
     })
     .then(query => {
-      this.zabbixAPI.getProblems(query.groupids, query.hostids, query.applicationids, options).then(console.log);
       return this.zabbixAPI.getTriggers(query.groupids, query.hostids, query.applicationids, options);
+    })
+    .then(triggers => {
+      triggers.forEach(formatLegacyTrigger);
+      return triggers;
     })
     .then(triggers => this.filterTriggersByProxy(triggers, proxyFilter));
   }
@@ -496,8 +496,18 @@ function getHostIds(items) {
   return _.uniq(_.flatten(hostIds));
 }
 
+function formatLegacyTrigger(trigger) {
+  trigger.eventid = trigger.lastEvent && trigger.lastEvent.eventid || null;
+}
+
 function formatProblem(problem, trigger) {
   let p = _.cloneDeep(trigger);
+
+  p.eventid = problem.eventid;
+  p.clock = problem.clock;
+  p.name = problem.name;
+  p.severity = problem.severity;
+  p.acknowledged = problem.acknowledged;
 
   // Set host and proxy that the trigger belongs
   if (trigger.hosts && trigger.hosts.length) {
