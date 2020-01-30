@@ -273,13 +273,21 @@ export class TriggerPanelCtrl extends PanelCtrl {
         const appFilter = datasource.replaceTemplateVars(triggerFilter.application.filter);
         const proxyFilter = datasource.replaceTemplateVars(triggerFilter.proxy.filter);
 
-        let triggersOptions = {
-          showTriggers: showEvents
-        };
+        let triggersOptions = {};
 
-        if (showEvents !== 1) {
-          triggersOptions.timeFrom = timeFrom;
-          triggersOptions.timeTo = timeTo;
+        if (zabbixVersion >= 4) {
+          if (showEvents !== 1) {
+            triggersOptions.recent = true;
+          }
+        } else {
+          let triggersOptions = {
+            showTriggers: showEvents
+          };
+
+          if (showEvents !== 1) {
+            triggersOptions.timeFrom = timeFrom;
+            triggersOptions.timeTo = timeTo;
+          }
         }
 
         const getProblemsMethod = zabbixVersion >= 4 ? zabbix.getProblems : zabbix.getTriggers;
