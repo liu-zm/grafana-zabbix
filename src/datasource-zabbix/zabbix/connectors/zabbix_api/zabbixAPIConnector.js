@@ -336,17 +336,18 @@ export class ZabbixAPIConnector {
   }
 
   getProblems(groupids, hostids, applicationids, options) {
-    let { timeFrom, timeTo, recent } = options;
+    let { timeFrom, timeTo, recent, severities } = options;
 
     let params = {
       output: 'extend',
-      groupids: groupids,
-      hostids: hostids,
-      applicationids: applicationids,
-      recent: recent,
       selectAcknowledges: 'extend',
       selectSuppressionData: 'extend',
-      selectTags: 'extend'
+      selectTags: 'extend',
+      groupids,
+      hostids,
+      applicationids,
+      recent,
+      severities,
     };
 
     if (timeFrom || timeTo) {

@@ -279,6 +279,7 @@ export class TriggerPanelCtrl extends PanelCtrl {
           if (showEvents !== 1) {
             triggersOptions.recent = true;
           }
+          triggersOptions.severities = this.formatSeverityOption();
         } else {
           let triggersOptions = {
             showTriggers: showEvents
@@ -527,6 +528,14 @@ export class TriggerPanelCtrl extends PanelCtrl {
     let newFilter = this.tagsToString(targetTags);
     target.tags.filter = newFilter;
     this.refresh();
+  }
+
+  formatSeverityOption() {
+    const selectedSeverities = this.panel.triggerSeverity.filter(s => s.show);
+    if (selectedSeverities.length === 6) {
+      return undefined;
+    }
+    return selectedSeverities.map(s => s.priority);
   }
 
   getProblemEvent(problem) {
