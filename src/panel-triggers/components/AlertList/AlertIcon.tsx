@@ -1,9 +1,9 @@
 import React, { CSSProperties } from 'react';
 import classNames from 'classnames';
-import { ZBXTrigger } from '../../types';
+import { GFZBXProblem } from '../../types';
 
 interface AlertIconProps {
-  problem: ZBXTrigger;
+  problem: GFZBXProblem;
   color: string;
   blink?: boolean;
   highlightBackground?: boolean;

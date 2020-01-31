@@ -2,9 +2,9 @@ import _ from 'lodash';
 import moment from 'moment';
 import { DataQuery } from '@grafana/ui/';
 import * as utils from '../datasource-zabbix/utils';
-import { ZBXTrigger } from './types';
+import { GFZBXProblem } from './types';
 
-export function isNewProblem(problem: ZBXTrigger, highlightNewerThan: string): boolean {
+export function isNewProblem(problem: GFZBXProblem, highlightNewerThan: string): boolean {
   try {
     const highlightIntervalMs = utils.parseInterval(highlightNewerThan);
     const durationSec = (Date.now() - problem.lastchangeUnix * 1000);

@@ -1,23 +1,24 @@
 import React, { PureComponent, CSSProperties } from 'react';
 import classNames from 'classnames';
-import { ProblemsPanelOptions, ZBXTrigger, GFTimeRange, ZBXTag } from '../../types';
+import { ProblemsPanelOptions, GFZBXProblem, GFTimeRange, ZBXTag, ZBXEvent } from '../../types';
 import { AckProblemData } from '.././Modal';
 import AlertCard from './AlertCard';
 
 export interface AlertListProps {
-  problems: ZBXTrigger[];
+  problems: GFZBXProblem[];
   panelOptions: ProblemsPanelOptions;
   loading?: boolean;
   timeRange?: GFTimeRange;
   pageSize?: number;
   fontSize?: number;
-  onProblemAck?: (problem: ZBXTrigger, data: AckProblemData) => void;
+  getProblemEvent: (problem: GFZBXProblem) => Promise<ZBXEvent>;
+  onProblemAck?: (problem: GFZBXProblem, data: AckProblemData) => void;
   onTagClick?: (tag: ZBXTag, datasource: string, ctrlKey?: boolean, shiftKey?: boolean) => void;
 }
 
 interface AlertListState {
   page: number;
-  currentProblems: ZBXTrigger[];
+  currentProblems: GFZBXProblem[];
 }
 
 export default class AlertList extends PureComponent<AlertListProps, AlertListState> {
@@ -51,12 +52,12 @@ export default class AlertList extends PureComponent<AlertListProps, AlertListSt
     }
   }
 
-  handleProblemAck = (problem: ZBXTrigger, data: AckProblemData) => {
+  handleProblemAck = (problem: GFZBXProblem, data: AckProblemData) => {
     return this.props.onProblemAck(problem, data);
   }
 
   render() {
-    const { problems, panelOptions } = this.props;
+    const { problems, panelOptions, getProblemEvent } = this.props;
     const currentProblems = this.getCurrentProblems(this.state.page);
     let fontSize = parseInt(panelOptions.fontSize.slice(0, panelOptions.fontSize.length - 1), 10);
     fontSize = fontSize && fontSize !== 100 ? fontSize : null;
@@ -71,6 +72,7 @@ export default class AlertList extends PureComponent<AlertListProps, AlertListSt
                 key={`${problem.triggerid}-${problem.datasource}`}
                 problem={problem}
                 panelOptions={panelOptions}
+                getProblemEvent={getProblemEvent}
                 onTagClick={this.handleTagClick}
                 onProblemAck={this.handleProblemAck}
               />

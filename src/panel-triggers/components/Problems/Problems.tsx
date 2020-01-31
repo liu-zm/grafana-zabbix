@@ -3,13 +3,24 @@ import ReactTable from 'react-table';
 import classNames from 'classnames';
 import _ from 'lodash';
 import moment from 'moment';
-import * as utils from '../../../datasource-zabbix/utils';
 import { isNewProblem } from '../../utils';
-import { ProblemsPanelOptions, ZBXTrigger, ZBXEvent, GFTimeRange, RTCell, ZBXTag, TriggerSeverity, RTResized, ZBXAlert, ZBXProblem } from '../../types';
 import EventTag from '../EventTag';
 import ProblemDetails from './ProblemDetails';
 import { AckProblemData } from '../Modal';
 import GFHeartIcon from '../GFHeartIcon';
+import {
+  ProblemsPanelOptions,
+  ZBXTrigger,
+  ZBXEvent,
+  GFTimeRange,
+  RTCell,
+  ZBXTag,
+  TriggerSeverity,
+  RTResized,
+  ZBXAlert,
+  ZBXProblem,
+  GFZBXProblem
+} from '../../types';
 
 const DEFAULT_TIME_FORMAT = "DD MMM YYYY HH:mm:ss";
 
@@ -20,7 +31,7 @@ export interface ProblemListProps {
   timeRange?: GFTimeRange;
   pageSize?: number;
   fontSize?: number;
-  getProblemEvent: (problem: ZBXProblem) => ZBXEvent[];
+  getProblemEvent: (problem: GFZBXProblem) => Promise<ZBXEvent>;
   getProblemEvents: (problem: ZBXTrigger) => ZBXEvent[];
   getProblemAlerts: (problem: ZBXTrigger) => ZBXAlert[];
   onProblemAck?: (problem: ZBXTrigger, data: AckProblemData) => void;
@@ -203,7 +214,7 @@ function SeverityCell(props: RTCell<ZBXTrigger>, problemSeverityDesc: TriggerSev
 const DEFAULT_OK_COLOR = 'rgb(56, 189, 113)';
 const DEFAULT_PROBLEM_COLOR = 'rgb(215, 0, 0)';
 
-function StatusCell(props: RTCell<ZBXTrigger>, okColor = DEFAULT_OK_COLOR, problemColor = DEFAULT_PROBLEM_COLOR, highlightNewerThan?: string) {
+function StatusCell(props: RTCell<GFZBXProblem>, okColor = DEFAULT_OK_COLOR, problemColor = DEFAULT_PROBLEM_COLOR, highlightNewerThan?: string) {
   const status = props.value === '0' ? 'RESOLVED' : 'PROBLEM';
   const color = props.value === '0' ? okColor : problemColor;
   let newProblem = false;
@@ -215,7 +226,7 @@ function StatusCell(props: RTCell<ZBXTrigger>, okColor = DEFAULT_OK_COLOR, probl
   );
 }
 
-function StatusIconCell(props: RTCell<ZBXTrigger>, highlightNewerThan?: string) {
+function StatusIconCell(props: RTCell<GFZBXProblem>, highlightNewerThan?: string) {
   const status = props.value === '0' ? 'ok' : 'problem';
   let newProblem = false;
   if (highlightNewerThan) {
@@ -229,7 +240,7 @@ function StatusIconCell(props: RTCell<ZBXTrigger>, highlightNewerThan?: string) 
   return <GFHeartIcon status={status} className={className} />;
 }
 
-function GroupCell(props: RTCell<ZBXTrigger>) {
+function GroupCell(props: RTCell<GFZBXProblem>) {
   let groups = "";
   if (props.value && props.value.length) {
     groups = props.value.map(g => g.name).join(', ');

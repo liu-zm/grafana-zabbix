@@ -1,19 +1,39 @@
 import React, { PureComponent } from 'react';
-import { ZBXTrigger } from '../../types';
+import { GFZBXProblem, ZBXEvent, ZBXAcknowledge } from '../../types';
 
-interface AlertAcknowledgesProps {
-  problem: ZBXTrigger;
+interface Props {
+  problem: GFZBXProblem;
+  getProblemEvent: (problem: GFZBXProblem) => Promise<ZBXEvent>;
   onClick: (event?) => void;
 }
 
-export default class AlertAcknowledges extends PureComponent<AlertAcknowledgesProps> {
+interface State {
+  acknowledges: ZBXAcknowledge[];
+}
+
+export default class AlertAcknowledges extends PureComponent<Props, State> {
+  constructor(props) {
+    super(props);
+    this.state = {
+      acknowledges: [],
+    };
+  }
+
+  async componentDidMount() {
+    const { problem, getProblemEvent } = this.props;
+    const event = await getProblemEvent(problem);
+    console.log(event);
+    this.setState({ acknowledges: event.acknowledges });
+  }
+
   handleClick = (event) => {
     this.props.onClick(event);
   }
 
   render() {
     const { problem } = this.props;
-    const ackRows = problem.acknowledges && problem.acknowledges.map(ack => {
+    const { acknowledges } = this.state;
+    const ackRows = acknowledges && acknowledges.map(ack => {
       return (
         <tr key={ack.acknowledgeid}>
           <td>{ack.time}</td>

@@ -3,7 +3,7 @@ import classNames from 'classnames';
 import _ from 'lodash';
 import moment from 'moment';
 import { isNewProblem, formatLastChange } from '../../utils';
-import { ProblemsPanelOptions, ZBXTrigger, ZBXTag } from '../../types';
+import { ProblemsPanelOptions, GFZBXProblem, ZBXTag, ZBXEvent } from '../../types';
 import { AckProblemData, Modal } from '.././Modal';
 import EventTag from '../EventTag';
 import Tooltip from '.././Tooltip/Tooltip';
@@ -11,10 +11,11 @@ import AlertAcknowledges from './AlertAcknowledges';
 import AlertIcon from './AlertIcon';
 
 interface AlertCardProps {
-  problem: ZBXTrigger;
+  problem: GFZBXProblem;
   panelOptions: ProblemsPanelOptions;
+  getProblemEvent: (problem: GFZBXProblem) => Promise<ZBXEvent>;
   onTagClick?: (tag: ZBXTag, datasource: string, ctrlKey?: boolean, shiftKey?: boolean) => void;
-  onProblemAck?: (problem: ZBXTrigger, data: AckProblemData) => Promise<any> | any;
+  onProblemAck?: (problem: GFZBXProblem, data: AckProblemData) => Promise<any> | any;
 }
 
 interface AlertCardState {
@@ -55,7 +56,7 @@ export default class AlertCard extends PureComponent<AlertCardProps, AlertCardSt
   }
 
   render() {
-    const { problem, panelOptions } = this.props;
+    const { problem, panelOptions, getProblemEvent } = this.props;
     const showDatasourceName = panelOptions.targets && panelOptions.targets.length > 1;
     const cardClass = classNames('alert-rule-item', 'zbx-trigger-card', { 'zbx-trigger-highlighted': panelOptions.highlightBackground });
     const descriptionClass = classNames('alert-rule-item__text', { 'zbx-description--newline': panelOptions.descriptionAtNewLine });
@@ -153,8 +154,12 @@ export default class AlertCard extends PureComponent<AlertCardProps, AlertCardSt
                 <span><i className="fa fa-question-circle"></i></span>
               </Tooltip>
             )}
-            {problem.lastEvent && (
-              <AlertAcknowledgesButton problem={problem} onClick={this.showAckDialog} />
+            {problem.showAckButton && (
+              <AlertAcknowledgesButton
+                problem={problem}
+                onClick={this.showAckDialog}
+                getProblemEvent={getProblemEvent}
+              />
             )}
           </div>
         </div>
@@ -168,7 +173,7 @@ export default class AlertCard extends PureComponent<AlertCardProps, AlertCardSt
 }
 
 interface AlertHostProps {
-  problem: ZBXTrigger;
+  problem: GFZBXProblem;
   panelOptions: ProblemsPanelOptions;
 }
 
@@ -194,7 +199,7 @@ function AlertHost(props: AlertHostProps) {
 }
 
 interface AlertGroupProps {
-  problem: ZBXTrigger;
+  problem: GFZBXProblem;
   panelOptions: ProblemsPanelOptions;
 }
 
@@ -247,23 +252,28 @@ function AlertSeverity(props) {
 }
 
 interface AlertAcknowledgesButtonProps {
-  problem: ZBXTrigger;
+  problem: GFZBXProblem;
+  getProblemEvent: (problem: GFZBXProblem) => Promise<ZBXEvent>;
   onClick: (event?) => void;
 }
 
 class AlertAcknowledgesButton extends PureComponent<AlertAcknowledgesButtonProps> {
-  handleClick = (event) => {
-    this.props.onClick(event);
-  }
-
   renderTooltipContent = () => {
-    return <AlertAcknowledges problem={this.props.problem} onClick={this.handleClick} />;
+    const { problem, getProblemEvent, onClick } = this.props;
+    return (
+      <AlertAcknowledges
+        problem={problem}
+        getProblemEvent={getProblemEvent}
+        onClick={onClick}
+      />
+    );
   }
 
   render() {
-    const { problem } = this.props;
+    const { problem, onClick } = this.props;
     let content = null;
-    if (problem.acknowledges && problem.acknowledges.length) {
+    const acknowledged = problem.acknowledged === '1' || problem.lastEvent && problem.lastEvent.acknowledged === '1';
+    if (acknowledged) {
       content = (
         <Tooltip placement="bottom" popperClassName="ack-tooltip" content={this.renderTooltipContent}>
           <span><i className="fa fa-comments"></i></span>
@@ -272,7 +282,7 @@ class AlertAcknowledgesButton extends PureComponent<AlertAcknowledgesButtonProps
     } else if (problem.showAckButton) {
       content = (
         <Tooltip placement="bottom" content="Acknowledge problem">
-          <span role="button" onClick={this.handleClick}><i className="fa fa-comments-o"></i></span>
+          <span role="button" onClick={onClick}><i className="fa fa-comments-o"></i></span>
         </Tooltip>
       );
     }
